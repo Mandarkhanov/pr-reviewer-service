@@ -1,0 +1,12 @@
+FROM alpine:3.18
+
+RUN apk add --no-cache curl ca-certificates
+
+ENV MIGRATE_VERSION=4.15.2
+RUN curl -L https://github.com/golang-migrate/migrate/releases/download/v${MIGRATE_VERSION}/migrate.linux-amd64.tar.gz \
+    | tar xvz -C /usr/local/bin
+
+WORKDIR /app
+COPY migrations /app/migrations
+
+ENTRYPOINT ["migrate"]
