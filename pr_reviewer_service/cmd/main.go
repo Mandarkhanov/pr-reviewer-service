@@ -1,8 +1,14 @@
 package main
 
 import (
-	"pr-reviewer/pkg/config"
-	"pr-reviewer/pkg/database"
+	"database/sql"
+	"fmt"
+	"pr-reviewer/internal/config"
+	"pr-reviewer/internal/handlers"
+	"pr-reviewer/internal/repository/postgres"
+	"pr-reviewer/internal/service"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -17,7 +23,7 @@ func main() {
 		logger.Fatal("Failed to load config", zap.Error(err))
 	}
 
-	db, err := database.Connect(cfg.DSN())
+	db, err := connect(cfg.DSN())
 	if err != nil {
 		logger.Fatal("Failed to initialize database", zap.Error(err))
 	}
@@ -28,6 +34,14 @@ func main() {
 	)
 
 	r := gin.Default()
+
+	repoTeams := postgres.NewTeamRepo()
+	repoUsers := postgres.NewUserRepo()
+	repoPR := postgres.NewPRRepo()
+	svc := service.NewService(db, repoTeams, repoUsers, repoPR)
+	handler := handlers.NewHandler(svc)
+	handler.InitRoutes(r)
+
 	r.GET("ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status": "ok",
@@ -39,7 +53,6 @@ func main() {
 	if err := r.Run(cfg.ServerAddress); err != nil {
 		logger.Fatal("Server failed", zap.Error(err))
 	}
-
 }
 
 func initLogger() *zap.Logger {
@@ -50,4 +63,17 @@ func initLogger() *zap.Logger {
 	zap.ReplaceGlobals(logger)
 
 	return logger
+}
+
+func connect(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database driver: %w", err)
+	}
+
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	return db, nil
 }

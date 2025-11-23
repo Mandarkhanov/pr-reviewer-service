@@ -27,6 +27,7 @@ services:
     depends_on:
       pr_reviewer_db:
         condition: service_healthy
+
     networks:
       - app-network
     command:
@@ -52,6 +53,8 @@ services:
     depends_on:
       pr_reviewer_db:
         condition: service_healthy
+      pr_reviewer_migrator:
+        condition: service_completed_successfully
     networks:
       - app-network
 
